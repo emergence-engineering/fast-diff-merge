@@ -178,8 +178,62 @@ const reduceReplaceSet = (replaceSet: Replace[]): Replace[] => {
   }, [] as Replace[]);
 };
 
+const mergeInsertionPair = (left: Replace, right: Replace): Replace[] => {
+  if (
+    left.original === "" &&
+    right.original[0] === " " &&
+    right.replacement[0] === " "
+  ) {
+    return [
+      {
+        from: left.from,
+        to: left.to + 1,
+        original: left.original + " ",
+        replacement: left.replacement + " ",
+      },
+      {
+        from: right.from + 1,
+        to: right.to,
+        original: right.original.slice(1),
+        replacement: right.replacement.slice(1),
+      },
+    ];
+  }
+  if (
+    right.original === "" &&
+    left.original.slice(-1) === " " &&
+    left.replacement.slice(-1) === " "
+  ) {
+    return [
+      {
+        from: left.from,
+        to: left.to - 1,
+        original: left.original.slice(0, -1),
+        replacement: left.replacement.slice(0, -1),
+      },
+      {
+        from: right.from - 1,
+        to: right.to,
+        original: " " + right.original,
+        replacement: " " + right.replacement,
+      },
+    ];
+  }
+  return [left, right];
+};
+
+export const mergeInsertions = (replaceSet: Replace[]): Replace[] => {
+  return replaceSet.reduce((acc, curr) => {
+    const last: Replace | undefined = acc[acc.length - 1];
+    const head = acc.slice(0, acc.length - 1);
+    if (!last) return [curr];
+    const merged = mergeInsertionPair(last, curr);
+    return [...head, ...merged];
+  }, [] as Replace[]);
+};
 export const getDiff = (original: string, fixed: string) => {
   const changes = diff(original, fixed);
   const replaceSet = convertDiffToReplaceSet(changes);
-  return reduceReplaceSet(reduceReplaceSet(replaceSet));
+  const reducedReplaceSet = reduceReplaceSet(reduceReplaceSet(replaceSet));
+  return mergeInsertions(reducedReplaceSet);
 };

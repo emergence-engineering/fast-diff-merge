@@ -367,4 +367,26 @@ describe("e2e mergeDiff tests", () => {
       },
     ] as Replace[]);
   });
+  it("should transfer the space (shouldn't contain an empty insertion)", () => {
+    expect(getDiff("I a nice car", "I have a nice car")).toStrictEqual([
+      {
+        from: 0,
+        to: 1,
+        original: "I",
+        replacement: "I",
+      },
+      {
+        from: 1,
+        to: 2,
+        original: " ",
+        replacement: " have ",
+      },
+      {
+        from: 2,
+        to: 12,
+        original: "a nice car",
+        replacement: "a nice car",
+      },
+    ]);
+  });
 });
