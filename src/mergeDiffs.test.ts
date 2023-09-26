@@ -388,5 +388,19 @@ describe("e2e mergeDiff tests", () => {
         replacement: "a nice car",
       },
     ]);
+    expect(getDiff(" have a nice car", "I have a nice car")).toStrictEqual([
+      {
+        from: 0,
+        to: 1,
+        original: " ",
+        replacement: "I ",
+      },
+      {
+        from: 1,
+        to: 16,
+        original: "have a nice car",
+        replacement: "have a nice car",
+      },
+    ]);
   });
 });
