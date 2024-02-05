@@ -56,12 +56,6 @@ describe("convertDiffToReplaceSet", () => {
       { from: 0, to: 0, original: "", replacement: "a" },
     ]);
   });
-  it("converts equals with newlines into two replaces", () => {
-    expect(convertDiffToReplaceSet([[diff.EQUAL, "\na"]])).toStrictEqual([
-      { from: 0, to: 1, original: "\n", replacement: "\n" },
-      { from: 1, to: 2, original: "a", replacement: "a" },
-    ]);
-  });
   it("complex case", () => {
     expect(
       convertDiffToReplaceSet([
@@ -85,14 +79,6 @@ describe("mergeReplacePair", () => {
         { from: 4, to: 5, original: "", replacement: "" },
       ),
     ).toThrowError();
-  });
-  it("if left element ends with newline then don't merge", () => {
-    expect(
-      mergeReplacePair(createIdentity("\n"), createIdentity("a", 1)),
-    ).toStrictEqual([
-      { from: 0, to: 1, original: "\n", replacement: "\n" },
-      { from: 1, to: 2, original: "a", replacement: "a" },
-    ]);
   });
   it("adjacent identity elements", () => {
     expect(
@@ -400,6 +386,61 @@ describe("e2e mergeDiff tests", () => {
         to: 16,
         original: "have a nice car",
         replacement: "have a nice car",
+      },
+    ]);
+  });
+});
+
+describe("e2e mergeDiff tests with separators", () => {
+  it("should handle \n if told so", () => {
+    expect(
+      getDiff("I have a\nnice car", "I have a\nnie car", {
+        separators: [" ", "\n"],
+      }),
+    ).toStrictEqual([
+      {
+        from: 0,
+        original: "I have a\n",
+        replacement: "I have a\n",
+        to: 9,
+      },
+      {
+        from: 9,
+        original: "nice",
+        replacement: "nie",
+        to: 13,
+      },
+      {
+        from: 13,
+        original: " car",
+        replacement: " car",
+        to: 17,
+      },
+    ]);
+  });
+  it("should handle \n and \r\n correctly", () => {
+    expect(
+      getDiff("I have a\r\nnice\ncar", "I have a\r\nnie\ncar", {
+        separators: [" ", "\n", "\r\n"],
+      }),
+    ).toStrictEqual([
+      {
+        from: 0,
+        original: "I have a\r\n",
+        replacement: "I have a\r\n",
+        to: 10,
+      },
+      {
+        from: 10,
+        original: "nice",
+        replacement: "nie",
+        to: 14,
+      },
+      {
+        from: 14,
+        original: "\ncar",
+        replacement: "\ncar",
+        to: 18,
       },
     ]);
   });

@@ -3,5 +3,6 @@ export {
   convertDiffToReplaceSet,
   getDiff,
   isIdentity,
+  whitespaceSeparators,
 } from "./mergeDiffs";
-export type { Replace } from "./mergeDiffs";
+export type { Replace, DiffOptions } from "./mergeDiffs";
