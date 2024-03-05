@@ -97,9 +97,24 @@ export const convertDiffToReplaceSet = (diffSet: diff.Diff[]): Replace[] => {
   );
 };
 
-const defaultGetLastSeparator = (text: string) => ({
-  s: " ",
-  i: text.lastIndexOf(" "),
+export interface SeparatorWithIndex {
+  s: string;
+  i: number;
+}
+export interface FirstAndLastSeparator {
+  first: SeparatorWithIndex;
+  last: SeparatorWithIndex;
+}
+
+const defaultGetLastSeparator = (text: string): FirstAndLastSeparator => ({
+  first: {
+    s: " ",
+    i: text.indexOf(" "),
+  },
+  last: {
+    s: " ",
+    i: text.lastIndexOf(" "),
+  },
 });
 const defaultStartsWithSeparator = (text: string) => text.startsWith(" ");
 const defaultEndsWithSeparator = (text: string) => text.endsWith(" ");
@@ -107,10 +122,9 @@ const defaultEndsWithSeparator = (text: string) => text.endsWith(" ");
 export const mergeReplacePair = (
   leftReplace: Replace,
   rightReplace: Replace,
-  getLastSeparator: (text: string) => {
-    s: string;
-    i: number;
-  } = defaultGetLastSeparator,
+  getFirstAndLastSeparator: (
+    text: string,
+  ) => FirstAndLastSeparator = defaultGetLastSeparator,
   startsWithSeparator: (text: string) => boolean = defaultStartsWithSeparator,
   endsWithSeparator: (text: string) => boolean = defaultEndsWithSeparator,
 ): Replace[] => {
@@ -139,7 +153,9 @@ export const mergeReplacePair = (
       return [leftReplace, rightReplace];
     }
 
-    const lastSeparator = getLastSeparator(leftReplace.replacement);
+    const lastSeparator = getFirstAndLastSeparator(
+      leftReplace.replacement,
+    ).last;
     // if we do not find any separators in left, we can merge left with right
     if (lastSeparator.i === -1) {
       return [
@@ -187,9 +203,11 @@ export const mergeReplacePair = (
       return [leftReplace, rightReplace];
     }
 
-    const lastSeparator = getLastSeparator(rightReplace.original);
+    const firstSeparator = getFirstAndLastSeparator(
+      rightReplace.original,
+    ).first;
     // if we do not find any separators in right, we can merge left with right
-    if (lastSeparator.i === -1) {
+    if (firstSeparator.i === -1) {
       return [
         {
           from: leftReplace.from,
@@ -200,13 +218,13 @@ export const mergeReplacePair = (
       ];
     }
     // we should split the right original with the last separator, remove the first "word" and merge it with the left original
-    const rightSplit = rightReplace.original.split(lastSeparator.s);
+    const rightSplit = rightReplace.original.split(firstSeparator.s);
     const firstWord = rightSplit.shift() || "";
     const textWithoutFirstWord =
-      (rightSplit.length ? lastSeparator.s : "") +
-      rightSplit.join(lastSeparator.s);
+      (rightSplit.length ? firstSeparator.s : "") +
+      rightSplit.join(firstSeparator.s);
     // if the text without the first word is the separator, we should merge the left and right
-    if (textWithoutFirstWord === lastSeparator.s)
+    if (textWithoutFirstWord === firstSeparator.s)
       return [
         {
           from: leftReplace.from,
@@ -250,7 +268,7 @@ const reduceReplaceSet = (
 ): Replace[] => {
   const startsWithSeparator = startsWithSeparatorFactory(separators);
   const endsWithSeparator = endsWithSeparatorFactory(separators);
-  const getLastSeparator = lastSeparatorFactory(separators);
+  const getFirstAndLastSeparator = firstAndLastSeparatorFactory(separators);
 
   return replaceSet.reduce((acc, curr) => {
     const last: Replace | undefined = acc[acc.length - 1];
@@ -259,7 +277,7 @@ const reduceReplaceSet = (
     const merged = mergeReplacePair(
       last,
       curr,
-      getLastSeparator,
+      getFirstAndLastSeparator,
       startsWithSeparator,
       endsWithSeparator,
     );
@@ -346,30 +364,42 @@ const endsWithSeparatorFactory = (
   };
 };
 
-const lastSeparatorFactory = (
+const firstAndLastSeparatorFactory = (
   separators: string[],
-): ((text: string) => { s: string; i: number }) => {
+): ((text: string) => {
+  first: { s: string; i: number };
+  last: { s: string; i: number };
+}) => {
   if (separators.length === 0) {
-    return () => ({ s: " ", i: -1 });
+    return () => ({ first: { s: " ", i: -1 }, last: { s: " ", i: -1 } });
   }
   if (separators.length === 1) {
     const separator = separators[0];
     return (text: string) => {
-      const index = text.lastIndexOf(separator);
-      return { s: separator, i: index };
+      return {
+        first: { s: separator, i: text.indexOf(separator) },
+        last: { s: separator, i: text.lastIndexOf(separator) },
+      };
     };
   }
   return (text: string) => {
-    let i = -1;
-    let s = " ";
+    let li = -1;
+    let fi = text.length;
+    let ls = " ";
+    let fs = " ";
     separators.forEach((separator) => {
-      const index = text.lastIndexOf(separator);
-      if (index > i) {
-        i = index;
-        s = separator;
+      const lIndex = text.lastIndexOf(separator);
+      const fIndex = text.indexOf(separator);
+      if (lIndex > li) {
+        li = lIndex;
+        ls = separator;
+      }
+      if (fIndex < fi && fIndex !== -1) {
+        fi = fIndex;
+        fs = separator;
       }
     });
-    return { s, i };
+    return { first: { s: fs, i: fi }, last: { s: ls, i: li } };
   };
 };
 
@@ -404,9 +434,7 @@ export const getDiff = (
   const replaceSet = convertDiffToReplaceSet(changes);
   // yes, we need to run the reduce twice!
   // the first time we go left to right, and the second time we go right to left kinda
-  const reducedReplaceSet = reduceReplaceSet(
-    reduceReplaceSet(replaceSet, mergedOptions.separators),
-    mergedOptions.separators,
-  );
-  return mergeInsertions(reducedReplaceSet);
+  const firstRun = reduceReplaceSet(replaceSet, mergedOptions.separators);
+  const secondRun = reduceReplaceSet(firstRun, mergedOptions.separators);
+  return mergeInsertions(secondRun);
 };

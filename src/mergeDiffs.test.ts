@@ -5,6 +5,7 @@ import {
   getDiff,
   mergeReplacePair,
   Replace,
+  whitespaceSeparators,
 } from "./mergeDiffs";
 
 const createIdentity = (text: string, shift = 0): Replace => ({
@@ -441,6 +442,36 @@ describe("e2e mergeDiff tests with separators", () => {
         original: "\ncar",
         replacement: "\ncar",
         to: 18,
+      },
+    ]);
+  });
+  it("should handle \n and start-end diffs correctly", () => {
+    expect(
+      getDiff(
+        "Another paragraph with a\nlinebreak",
+        "[fixed]-Another paragraph with a\nlinebreak-[fixed]",
+        {
+          separators: whitespaceSeparators,
+        },
+      ),
+    ).toStrictEqual([
+      {
+        from: 0,
+        original: "Another",
+        replacement: "[fixed]-Another",
+        to: 7,
+      },
+      {
+        from: 7,
+        original: " paragraph with a\n",
+        replacement: " paragraph with a\n",
+        to: 25,
+      },
+      {
+        from: 25,
+        original: "linebreak",
+        replacement: "linebreak-[fixed]",
+        to: 34,
       },
     ]);
   });

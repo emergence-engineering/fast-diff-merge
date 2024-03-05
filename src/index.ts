@@ -5,4 +5,9 @@ export {
   isIdentity,
   whitespaceSeparators,
 } from "./mergeDiffs";
-export type { Replace, DiffOptions } from "./mergeDiffs";
+export type {
+  Replace,
+  DiffOptions,
+  SeparatorWithIndex,
+  FirstAndLastSeparator,
+} from "./mergeDiffs";
